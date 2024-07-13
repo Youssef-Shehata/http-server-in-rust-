@@ -13,7 +13,7 @@ fn main() {
      for stream in listener.incoming() {
        match stream {
            Ok(mut _stream) => {
-               _stream.write(b"HTTP/1.1 200 OK \r\n\r\n").expect("200 \n");
+               _stream.write(b"HTTP/1.1 200 OK\r\n\r\n").expect("200 \n");
            }
 
            Err(e) => {
