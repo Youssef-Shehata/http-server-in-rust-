@@ -26,7 +26,7 @@ fn main() {
                    }
                    
                    else{
-                        _stream.write(b"HTTP/1.1 404 NOT FOUND\r\n\r\n").expect("404 \n");
+                        _stream.write(b"HTTP/1.1 404 Not Found\r\n\r\n").expect("404 \n");
 
                    }
 
