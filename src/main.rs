@@ -1,7 +1,6 @@
 // Uncomment this block to pass the first stage
 use std::{
     error::Error,
-    fmt::Debug,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
 };
@@ -33,7 +32,7 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     let req = String::from_utf8_lossy(&buffer[..]);
     let lines: Vec<&str> = req.split("\r\n").collect();
     let tokens: Vec<&str> = lines[0].split(" ").collect();
-    let agent: Vec<&str> = lines[3].split(" ").collect();
+    let agent: Vec<&str> = lines[2].split(" ").collect();
 
     println!("{:?}", agent);
     match tokens[0] {
@@ -44,10 +43,13 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
                 let response = tokens[1].replace("/echo/", "");
                 stream.write(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}", response.len(), response).as_bytes())?;
             } else if tokens[1].starts_with("/user-agent") {
-                let response = agent[1];
-                stream.write(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}", response.len(), response).as_bytes())?;
+                if let Some(response) = agent.get(1) {
+                    stream.write(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}", response.len(), response).as_bytes())?;
+                } else {
+                    stream.write(b"HTTP/1.1 404 NOT FOUND\r\n\r\n")?;
+                }
             } else {
-                stream.write(b"HTTP/1.1 404 NOT FOUND\r\n\r\n")?;
+                stream.write(b"HTTP/1.1 404 Not Found\r\n\r\n")?;
             }
         }
         _ => {
