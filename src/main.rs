@@ -1,8 +1,9 @@
 // Uncomment this block to pass the first stage
 use std::{
+    error::Error,
     fmt::Debug,
     io::{Read, Write},
-    net::TcpListener,
+    net::{TcpListener, TcpStream},
 };
 #[derive(Debug)]
 struct Request {
@@ -20,40 +21,13 @@ fn main() {
     //
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
 
-    let mut buffer = [0; 1024];
     for stream in listener.incoming() {
         match stream {
-            Ok(mut stream) => {
-                let _ = stream.read(&mut buffer);
-                let req = String::from_utf8_lossy(&buffer[..]);
-                let mut response = String::from("HTTP/1.1 404 Not Found\r\n");
-                if let Some(request) = parse_request(&req) {
-                    println!("{:?}", request);
-                    if let Some(path_parts) = parse_path(request.path) {
-                        if path_parts.is_empty() {
-                            response = String::from("HTTP/1.1 200 OK\r\n");
-                            stream.write_all(response.as_bytes()).unwrap();
-                        } else if path_parts.len() >= 1 && path_parts[0] == "echo" {
-                            if let Some(body) = path_parts.get(1) {
-                                println!("body : {}", body);
-                                response = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
-                    body.len(),
-                    body
-                );
-                            } else {
-                                response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",0 ,"");
-                            }
-
-                            stream.write_all(response.as_bytes()).unwrap();
-                        } else {
-                            stream.write_all(response.as_bytes()).unwrap();
-                        }
-                    }
+            Ok(stream) => {
+                if let Err(e) = handle_client(stream) {
+                    eprintln!("Failed to handle client : {}", e);
                 }
-                stream.flush().unwrap()
             }
-
             Err(e) => {
                 println!("error: {}", e);
             }
@@ -78,13 +52,28 @@ fn parse_request(req: &str) -> Option<Request> {
     };
     Some(req)
 }
-
-fn parse_path(path: String) -> Option<Vec<String>> {
-    let path_parts: Vec<&str> = path.split('/').collect();
-    let filtered_path_parts: Vec<String> = path_parts
-        .into_iter()
-        .filter(|&s| !s.is_empty())
-        .map(|s| s.to_string())
-        .collect();
-    Some(filtered_path_parts)
+fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
+    let mut buffer = [0; 1024];
+    let _ = stream.read(&mut buffer);
+    let req = String::from_utf8_lossy(&buffer[..]);
+    if let Some(request) = parse_request(&req) {
+        let path = request.path;
+        if path == String::from("/") {
+            stream.write(b"HTTP/1.1 200 OK\r\n\r\n")?;
+        } else if path.starts_with("/echo/") {
+            let (_, data) = path.split_at(6);
+            stream.write(
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+                    data.len(),
+                    data
+                )
+                .as_bytes(),
+            )?;
+        } else {
+            stream.write(b"HTTP/1.1 404 Not Found\r\n\r\n")?;
+        }
+        stream.flush().unwrap();
+    }
+    Ok(())
 }
