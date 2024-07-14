@@ -39,11 +39,12 @@ fn parse_request(req: &str) -> Option<Request> {
     let req_lines: Vec<&str> = req.lines().collect();
     let method_line = req_lines[0];
     let host_line = req_lines[1];
-    let agent_line = req_lines[2];
+    let agent_line = req_lines[3];
 
     let method_line_parts: Vec<&str> = method_line.split_whitespace().collect();
-    let host_line_parts: Vec<&str> = host_line.split_whitespace().collect();
+    //let host_line_parts: Vec<&str> = host_line.split_whitespace().collect();
     let agent_parts: Vec<&str> = agent_line.split_whitespace().collect();
+    println!("agent parts : {:?}", agent_parts);
     let req = Request {
         method: method_line_parts[0].into(),
         path: method_line_parts[1].into(),
@@ -58,7 +59,8 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     let req = String::from_utf8_lossy(&buffer[..]);
     if let Some(request) = parse_request(&req) {
         let path = request.path;
-        println!("path : {path}");
+        let agent = request.user_agent;
+        println!("agent : {agent}");
         if path == String::from("/") {
             stream.write(b"HTTP/1.1 200 OK\r\n\r\n")?;
         } else if path.starts_with("/echo/") {
@@ -72,7 +74,7 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
                 .as_bytes(),
             )?;
         } else if path.starts_with("/user-agent") {
-            let (_, data) = path.split_at(1);
+            let data = agent;
             stream.write(
                 format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
