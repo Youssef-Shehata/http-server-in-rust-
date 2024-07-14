@@ -23,8 +23,8 @@ fn main() {
     let mut buffer = [0; 1024];
     for stream in listener.incoming() {
         match stream {
-            Ok(mut _stream) => {
-                let _ = _stream.read(&mut buffer);
+            Ok(mut stream) => {
+                let _ = stream.read(&mut buffer);
                 let req = String::from_utf8_lossy(&buffer[..]);
                 let mut response = String::from("HTTP/1.1 404 Not Found\r\n");
                 if let Some(request) = parse_request(&req) {
@@ -32,21 +32,26 @@ fn main() {
                     if let Some(path_parts) = parse_path(request.path) {
                         if path_parts.is_empty() {
                             response = String::from("HTTP/1.1 200 OK\r\n");
-                            _stream.write_all(response.as_bytes()).unwrap();
+                            stream.write_all(response.as_bytes()).unwrap();
                         } else if path_parts.len() >= 1 && path_parts[0] == "echo" {
                             if let Some(body) = path_parts.get(1) {
-                                response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",path_parts[1].len() , body);
+                                println!("body : {}", body);
+                                response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
                             } else {
                                 response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",0 ,"");
                             }
 
-                            _stream.write_all(response.as_bytes()).unwrap();
+                            stream.write_all(response.as_bytes()).unwrap();
                         } else {
-                            _stream.write_all(response.as_bytes()).unwrap();
+                            stream.write_all(response.as_bytes()).unwrap();
                         }
                     }
                 }
-                _stream.flush().unwrap()
+                stream.flush().unwrap()
             }
 
             Err(e) => {
