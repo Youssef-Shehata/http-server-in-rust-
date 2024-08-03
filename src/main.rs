@@ -1,25 +1,23 @@
-// Uncomment this block to pass the first stage
-use http_server_starter_rust::Thread_pool;
-
+use http_server_starter_rust::ThreadPool;
+mod client_handlers;
 use std::{
     error::Error,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
 };
 fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
 
-    // Uncomment this block to pass the first stage
-    //
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
-    let pool = Thread_pool::new(5);
+    let pool = ThreadPool::new(5);
 
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
                 pool.execute(|| {
-                    handle_client(stream);
+                    handle_client(stream).unwrap_or_else(|e| {
+                        eprint!("coudlnt handle request ERROR : {}", e);
+                    });
                 });
             }
 
@@ -30,29 +28,21 @@ fn main() {
     }
 }
 fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
-    let novel = String::from("Call me Ishmael. Some years ago...");
-    let first_sentence = novel.split('.').next().unwrap();
     let mut buffer = [0; 1024];
     let _ = stream.read(&mut buffer);
     let req = String::from_utf8_lossy(&buffer[..]);
     let lines: Vec<&str> = req.split("\r\n").collect();
     let tokens: Vec<&str> = lines[0].split(" ").collect();
-    let agent: Vec<&str> = lines[2].split(" ").collect();
-
-    println!("{:?}", agent);
     match tokens[0] {
         "GET" => {
             if tokens[1] == "/" {
                 stream.write(b"HTTP/1.1 200 OK\r\n\r\n")?;
             } else if tokens[1].starts_with("/echo/") {
-                let response = tokens[1].replace("/echo/", "");
-                stream.write(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}", response.len(), response).as_bytes())?;
+                client_handlers::echo(&mut stream, tokens[1])?;
             } else if tokens[1].starts_with("/user-agent") {
-                if let Some(response) = agent.get(1) {
-                    stream.write(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}", response.len(), response).as_bytes())?;
-                } else {
-                    stream.write(b"HTTP/1.1 404 NOT FOUND\r\n\r\n")?;
-                }
+                client_handlers::get_agent(&mut stream, lines)?;
+            } else if tokens[1].starts_with("/files/") {
+                client_handlers::get_file(&mut stream, tokens[1].replace("/files/", ""))?;
             } else {
                 stream.write(b"HTTP/1.1 404 Not Found\r\n\r\n")?;
             }
