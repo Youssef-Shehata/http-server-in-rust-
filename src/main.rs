@@ -1,4 +1,6 @@
 // Uncomment this block to pass the first stage
+use http_server_starter_rust::Thread_pool;
+
 use std::{
     error::Error,
     io::{Read, Write},
@@ -11,22 +13,25 @@ fn main() {
     // Uncomment this block to pass the first stage
     //
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
+    let pool = Thread_pool::new(5);
 
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                if let Err(e) = handle_client(stream) {
-                    eprintln!("Failed to handle client : {}", e);
-                }
+                pool.execute(|| {
+                    handle_client(stream);
+                });
             }
+
             Err(e) => {
                 println!("error: {}", e);
             }
         }
     }
 }
-
 fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
+    let novel = String::from("Call me Ishmael. Some years ago...");
+    let first_sentence = novel.split('.').next().unwrap();
     let mut buffer = [0; 1024];
     let _ = stream.read(&mut buffer);
     let req = String::from_utf8_lossy(&buffer[..]);
