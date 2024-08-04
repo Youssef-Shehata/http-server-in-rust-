@@ -65,7 +65,7 @@ impl Worker {
             };
         }) {
             Ok(t) => Some(t),
-            Err(e) => {
+            Err(_) => {
                 eprintln!("coudlnt spawn a new thread");
                 None
             }
