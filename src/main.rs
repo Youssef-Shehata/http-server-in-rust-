@@ -1,14 +1,22 @@
 use http_server_starter_rust::ThreadPool;
 mod client_handlers;
+use std::env;
+use std::process;
 use std::{
     error::Error,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
 };
 fn main() {
+    if let None = env::args().nth(1) {
+        println!("please provide a port number to listen on..");
+        process::exit(1);
+    }
     println!("Logs from your program will appear here!");
 
-    let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
+    let port = env::args().nth(1).unwrap();
+
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
     let pool = ThreadPool::new(5);
 
     for stream in listener.incoming() {
