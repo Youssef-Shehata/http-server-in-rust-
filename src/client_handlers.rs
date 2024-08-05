@@ -10,7 +10,6 @@ use std::{
 pub fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     let mut buffer = [0; 1024];
     let _ = stream.read(&mut buffer);
-
     let req_string = String::from_utf8_lossy(&buffer[..]);
     let request = request::Request::new(req_string.to_string());
 
@@ -22,13 +21,13 @@ pub fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
                 stream.write(format!("{}", res.to_string()).as_bytes())?;
             }
             r if r.starts_with("/echo/") => {
-                echo(&mut stream, request.path)?;
+                echo(&mut stream, &request)?;
             }
             r if r.starts_with("/user-agent") => {
-                get_agent(&mut stream, request.headers.get("User-Agent"))?;
+                get_agent(&mut stream, &request)?;
             }
             r if r.starts_with("/files/") => {
-                read_existent_file(&mut stream, request.path.replace("/files/", ""))?;
+                read_existent_file(&mut stream, &request)?;
             }
             _ => {
                 stream.write(b"HTTP/1.1 404 Not Found\r\n\r\n")?;
@@ -37,8 +36,7 @@ pub fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
         "POST" => match &request.path[..] {
             files if files.starts_with("/files/") => write_new_file(&mut stream, &request)?,
             _ => {
-                let res = response::Response::new(400);
-                stream.write(format!("{}", res.to_string()).as_bytes())?;
+                stream.write(b"HTTP/1.1 404 Not Found\r\n\r\n")?;
             }
         },
         _ => {
@@ -48,20 +46,22 @@ pub fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn echo(stream: &mut TcpStream, token: String) -> Result<(), Box<dyn Error>> {
+fn echo(stream: &mut TcpStream, request: &Request) -> Result<(), Box<dyn Error>> {
+    let token = &request.path;
     let query = token.replace("/echo/", "");
     let mut response = response::Response::new(200);
     response.set_header("Content-Type", "text/plain");
     response.set_header("Content-Length", &format!("{}", query.len()));
+    if let Some(compression) = request.headers.get("Accept-Encoding") {
+        response.set_header("Content-Encoding", &compression);
+    }
     response.set_body(&query);
 
     stream.write(format!("{}", response.to_string()).as_bytes())?;
     Ok(())
 }
-fn get_agent(
-    stream: &mut TcpStream,
-    user_agent_header: Option<&String>,
-) -> Result<(), Box<dyn Error>> {
+fn get_agent(stream: &mut TcpStream, request: &Request) -> Result<(), Box<dyn Error>> {
+    let user_agent_header = request.headers.get("User-Agent");
     match user_agent_header {
         Some(header) => {
             let mut response = response::Response::new(200);
@@ -87,7 +87,8 @@ fn read_file_content(file_name: String) -> Result<String, Box<dyn Error>> {
     let response = String::from_utf8(file_buffer)?;
     Ok(response)
 }
-fn read_existent_file(stream: &mut TcpStream, token: String) -> Result<(), Box<dyn Error>> {
+fn read_existent_file(stream: &mut TcpStream, request: &Request) -> Result<(), Box<dyn Error>> {
+    let token = request.path.replace("/files/", "");
     let content = read_file_content(token);
     match content {
         Ok(file_data) => {
