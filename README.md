@@ -1,6 +1,7 @@
 # 🚀 Rust HTTP Server
 
-A high-performance, zero-copy HTTP server implementation in Rust. Built with modern async I/O and focused on memory efficiency.
+this is a practice project, its not meant for production, atleast so far.
+
 **this used to be a toy binary server but now im in the process of turning this into a somewhat usable library, currently fighting with tokio**
 
 ## ✨ Features
