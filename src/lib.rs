@@ -1,3 +1,13 @@
+pub mod errors;
+pub mod middleware;
+pub mod router;
+pub mod pool;
+pub mod http;
+pub mod server;
+pub mod parser;
+
+pub use errors::Error;
+pub type Result<T> = std::result::Result<T, Error>;
 use std::{
     sync::{mpsc, Arc, Mutex},
     thread::{self},
@@ -8,10 +18,12 @@ pub struct ThreadPool {
 }
 
 type Job = Box<dyn FnOnce() + 'static + Send>;
+
 impl ThreadPool {
     pub fn new(size: usize) -> ThreadPool {
         assert!(size > 0);
         let mut workers = Vec::with_capacity(size);
+
         let (sender, receiver) = mpsc::channel();
 
         let receiver = Arc::new(Mutex::new(receiver));

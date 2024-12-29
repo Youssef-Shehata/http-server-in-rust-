@@ -3,7 +3,6 @@ use http_server_starter_rust::{
     http::{HttpMethod, HttpRequest, HttpVersion},
     parser::parse_request,
 };
-use nom::AsBytes;
 use pretty_assertions::assert_eq;
 fn assert_request(
     request: HttpRequest,

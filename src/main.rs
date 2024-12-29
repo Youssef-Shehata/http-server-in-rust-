@@ -1,36 +1,24 @@
-use http_server_starter_rust::ThreadPool;
-mod client_handlers;
-mod request;
-mod response;
-mod time;
-use std::env;
-use std::net::TcpListener;
-use std::process;
-fn main() {
-    if let None = env::args().nth(1) {
-        println!("please provide a port number to listen on..");
-        process::exit(1);
+use std::sync::Arc;
+
+use http_server_starter_rust::http::{HttpMethod, HttpRequest, HttpResponse};
+use http_server_starter_rust::server::HttpServer;
+use http_server_starter_rust::Error;
+
+fn handle_request(req: &HttpRequest) -> HttpResponse {
+    match (req.method, req.path.as_str()) {
+        (HttpMethod::Get, "/") => HttpResponse::new(200, "OK").with_body("Hello, World!"),
+        _ => HttpResponse::new(404, "Not Found").with_body("Not Found"),
     }
-    println!("Logs from your program will appear here!");
+}
 
-    let port = env::args().nth(1).unwrap();
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let mut s = HttpServer::new("127.0.0.1:4221");
 
-    let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
-    let pool = ThreadPool::new(5);
+    let handle  = Arc::new(handle_request);
+    s= s.get("/", handle.clone());
 
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                pool.execute(|| {
-                    client_handlers::handle_client(stream).unwrap_or_else(|e| {
-                        eprint!("coudlnt handle request ERROR : {}", e);
-                    });
-                });
-            }
+    s.run().await?;
 
-            Err(e) => {
-                println!("error in tcp stream: {}", e);
-            }
-        }
-    }
+    Ok(())
 }
